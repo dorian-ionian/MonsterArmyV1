@@ -74,6 +74,7 @@ var string FirstSupportedMap;
 
 var MonsterArmyGRI MAGRI;
 var sound BellSound;
+var bool bDriverActive;     // the MonsterArmyDriver owns the 1Hz war clock
 
 //==============================================================================
 // Initialization
@@ -133,6 +134,16 @@ function PostBeginPlay()
     }
     else
         log("MonsterArmy: MAGRI is None at PostBeginPlay", 'MonsterArmyV1');
+
+    // Dedicated war driver: ticks independently of the game state machine
+    // and force-starts the match when the stock PendingMatch state never
+    // does (e.g. no human players on a dedicated server).
+    if (Role == ROLE_Authority)
+    {
+        bDriverActive = (Spawn(class'MonsterArmyDriver') != None);
+        if (!bDriverActive)
+            log("MonsterArmy: could not spawn war driver - falling back to state timer", 'MonsterArmyV1');
+    }
 }
 
 function CollectStartSpots()
@@ -520,6 +531,7 @@ function bool SpawnArmies()
         log("MonsterArmy: could not spawn any monsters - will top up", 'MonsterArmyV1');
         return false;
     }
+    UpdateAliveCounts();   // fresh counts BEFORE the first top-up tick
     LinkArmies();
     return true;
 }
@@ -1069,7 +1081,9 @@ function BeginIntermission()
 }
 
 //==============================================================================
-// War driver - one tick per second from the stock match timer.
+// War driver - the MonsterArmyDriver actor calls RoundTick() once per
+// second, independent of the game state machine. The state override below
+// is only a fallback in case the driver could not spawn.
 //==============================================================================
 
 state MatchInProgress
@@ -1124,6 +1138,9 @@ function RoundTick()
     switch (Phase)
     {
         case PHASE_FIGHT:
+            // Fresh alive counts first - the top-up must never see the
+            // stale 0 from round start (that double-spawned whole armies).
+            UpdateAliveCounts();
             // The spawn window keeps topping the armies up to full size
             // for the first ~10 seconds of the round, then it's a
             // fight-to-the-death - no mid-round respawns.

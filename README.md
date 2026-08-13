@@ -28,6 +28,7 @@ every human on the server is locked into spectator mode to watch the show.
 |------|---------|
 | `Classes\MonsterArmyGame.uc` | the gametype (rounds, armies, enforcement) |
 | `Classes\MonsterArmyMonsterController.uc` | army grudge AI (never camps, self-unstuck) |
+| `Classes\MonsterArmyDriver.uc` | 1-second show driver (force-starts + drives the war) |
 | `Classes\MonsterArmyMonsters.uc` | config object with the monster table |
 | `Classes\MonsterArmyGRI.uc` | replicated war state for the HUD |
 | `Classes\MonsterArmyHUD.uc` | the matchup/alive-count overlay |

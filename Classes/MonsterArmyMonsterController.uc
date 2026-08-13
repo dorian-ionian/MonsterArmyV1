@@ -39,9 +39,34 @@ function SetGrudgeEnemy(Pawn Other)
 // the monster off to camp is intercepted and redirected back at the grudge.
 //------------------------------------------------------------------------------
 
+// A dead grudge is replaced IMMEDIATELY with the nearest living enemy of
+// the opposing army (the game knows the rosters). This both keeps the
+// monster fighting without a 1-second re-aim lag and keeps the stock AI
+// states from ever seeing a None Enemy (which spams Accessed None).
 function bool GrudgeAlive()
 {
-    return (GrudgeEnemy != None && GrudgeEnemy.Health > 0 && GrudgeEnemy.Controller != None);
+    if (GrudgeEnemy == None || GrudgeEnemy.Health <= 0 || GrudgeEnemy.bDeleteMe)
+    {
+        SetGrudgeEnemy(GetNextEnemy());
+        return (GrudgeEnemy != None && GrudgeEnemy.Health > 0 && GrudgeEnemy.Controller != None);
+    }
+    return true;
+}
+
+function Pawn GetNextEnemy()
+{
+    local MonsterArmyGame G;
+    local Monster M;
+
+    if (Pawn == None || Level.Game == None)
+        return None;
+    G = MonsterArmyGame(Level.Game);
+    if (G == None)
+        return None;
+    M = Monster(Pawn);
+    if (M == None)
+        return None;
+    return G.FindNearestEnemy(M, Team);
 }
 
 // Stock version only considers *visible* pawns and can leave us enemy-less.
@@ -97,6 +122,15 @@ function ChooseAttackMode()
         DoRangedAttackOn(Enemy);   // in striking range - attack
     else
         DoCharge();                // out of range - chase them down
+}
+
+// The stock DoCharge() routes water/non-walkers into the unguarded stock
+// TacticalMove state, which reads Enemy without None checks (Accessed None
+// spam once a grudge dies). Always charge instead - our Charging state
+// self-recovers from any terrain with teleports.
+function DoTacticalMove()
+{
+    GotoState('Charging');
 }
 
 //------------------------------------------------------------------------------
@@ -179,8 +213,25 @@ ignores SeePlayer, HearNoise;
             Pawn.bCanJump = true;
     }
 
+    // The stock version reads Enemy.Location without a None check - the
+    // grudge can die mid-fight, which spammed Accessed None. Guard it.
+    function bool StrafeFromDamage(float Damage, class<DamageType> DamageType, bool bFindDest)
+    {
+        if (Enemy == None || Pawn == None)
+            return false;
+        return Super.StrafeFromDamage(Damage, DamageType, bFindDest);
+    }
+
+    // The stock TryStrafe detours into the unguarded stock TacticalMove
+    // state (DoStrafeMove), which reads Enemy without None checks. Skip the
+    // detour - the monster simply keeps charging.
+    function bool TryStrafe(vector sideDir)
+    {
+        return true;
+    }
+
 Begin:
-    if (Pawn.Physics == PHYS_Falling)
+    if (Pawn.Physics == PHYS_Falling && Enemy != None)
     {
         Focus = Enemy;
         Destination = Enemy.Location;
