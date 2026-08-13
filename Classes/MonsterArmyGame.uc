@@ -29,6 +29,10 @@ class MonsterArmyGame extends xDeathMatch
 // Configurable war settings (see System\MonsterArmyV1.ini)
 //------------------------------------------------------------------------------
 var() config int    ArmySize;           // monsters per army (default 32)
+var() config bool   bClonesArmy;        // true: each army is ONE class (2
+                                        // classes per matchup). false: every
+                                        // army member is a random monster
+                                        // from the table (default true)
 var() config int    RoundTimeLimit;     // seconds per round before the
                                         // alive-count decision (default 300)
 var() config int    RoundsPerMatch;     // best-of-N rounds per matchup (default 3)
@@ -355,14 +359,26 @@ function StartNewMatchup()
     StartRound();
 }
 
-// Pick two random army classes from the monster table. The same armies
-// fight every round of the matchup; a new matchup books fresh armies.
+// Pick the armies for a matchup. With bClonesArmy the whole army is one
+// class (2 classes per matchup, the same armies fight every round). With
+// mixed mode the armies have no fixed class - every member gets its own
+// random monster from the table at spawn time (GetMonsterClassForSpawn).
 function PickArmies()
 {
     local array<int> Idx;
     local int a, b, tries, i;
     local string AClass, AName, BClass, BName;
     local class<Monster> ALoaded, BLoaded;
+
+    if (!bClonesArmy)
+    {
+        // Mixed armies - no fixed classes, names are generic.
+        ArmyAClass = None;
+        ArmyBClass = None;
+        ArmyAName = "Random Monsters";
+        ArmyBName = "Random Monsters";
+        return;
+    }
 
     BuildMonsterIndex(Idx);
     if (Idx.Length == 0)
@@ -427,6 +443,31 @@ function BuildMonsterIndex(out array<int> Idx)
         if (M != None)
             Idx[Idx.Length] = i;
     }
+}
+
+// The class for one army member. Clone mode: the army's fixed class.
+// Mixed mode (bClonesArmy=false): a fresh random pick from the table per
+// monster, so both armies are a ragtag horde of everything in the list.
+function class<Monster> GetMonsterClassForSpawn(int Team)
+{
+    local array<int> Idx;
+    local class<Monster> M;
+
+    if (bClonesArmy)
+    {
+        if (Team == 0)
+            return ArmyAClass;
+        return ArmyBClass;
+    }
+
+    BuildMonsterIndex(Idx);
+    if (Idx.Length > 0)
+        M = class<Monster>(DynamicLoadObject(class'MonsterArmyMonsters'.default.MonsterTable[Idx[Rand(Idx.Length)]].MonsterClassName, class'Class'));
+    if (M != None)
+        return M;
+    if (Team == 0)
+        return class'SkaarjPack.Skaarj';
+    return class'SkaarjPack.Gasbag';
 }
 
 function StartRound()
@@ -514,16 +555,16 @@ function bool SpawnArmies()
     {
         ArmyClusterA = CA;
         ArmyClusterB = CB;
-        NA = SpawnArmyMonsters(0, CA, ArmyAClass, ArmySize);
-        NB = SpawnArmyMonsters(1, CB, ArmyBClass, ArmySize);
+        NA = SpawnArmyMonsters(0, CA, ArmySize);
+        NB = SpawnArmyMonsters(1, CB, ArmySize);
     }
     else
     {
         // Weird map with almost no starts - drop both armies at the center.
         ArmyClusterA.Length = 0;
         ArmyClusterB.Length = 0;
-        NA = SpawnArmyAtCenter(0, ArmyAClass);
-        NB = SpawnArmyAtCenter(1, ArmyBClass);
+        NA = SpawnArmyAtCenter(0);
+        NB = SpawnArmyAtCenter(1);
     }
 
     if (NA + NB == 0)
@@ -546,30 +587,32 @@ function TopUpArmies()
     {
         NeedA = ArmySize - AliveA;
         if (ArmyClusterA.Length > 0)
-            SpawnArmyMonsters(0, ArmyClusterA, ArmyAClass, NeedA);
+            SpawnArmyMonsters(0, ArmyClusterA, NeedA);
         else
-            SpawnArmyAtCenter(0, ArmyAClass);
+            SpawnArmyAtCenter(0);
     }
     if (AliveB < ArmySize)
     {
         NeedB = ArmySize - AliveB;
         if (ArmyClusterB.Length > 0)
-            SpawnArmyMonsters(1, ArmyClusterB, ArmyBClass, NeedB);
+            SpawnArmyMonsters(1, ArmyClusterB, NeedB);
         else
-            SpawnArmyAtCenter(1, ArmyBClass);
+            SpawnArmyAtCenter(1);
     }
     LinkArmies();
 }
 
-function int SpawnArmyMonsters(int Team, array<int> Cluster, class<Monster> MClass, int Count)
+function int SpawnArmyMonsters(int Team, array<int> Cluster, int Count)
 {
     local int i, k, Spot, Spawned;
     local Monster M;
+    local class<Monster> MClass;
     local vector Loc;
     local float A, R;
 
     for (i = 0; i < Count; i++)
     {
+        MClass = GetMonsterClassForSpawn(Team);
         M = None;
         // Try every cluster spot (round-robin) with a random scatter offset
         // so the army fans out instead of stacking on one start.
@@ -599,16 +642,18 @@ function int SpawnArmyMonsters(int Team, array<int> Cluster, class<Monster> MCla
     return Spawned;
 }
 
-function int SpawnArmyAtCenter(int Team, class<Monster> MClass)
+function int SpawnArmyAtCenter(int Team)
 {
     local int i, Spawned;
     local Monster M;
+    local class<Monster> MClass;
     local vector Center, Loc;
     local float A, R;
 
     Center = GetLevelCenter();
     for (i = 0; i < ArmySize; i++)
     {
+        MClass = GetMonsterClassForSpawn(Team);
         A = FRand() * 2 * Pi;
         R = 200 + FRand() * 500;
         Loc = Center;
@@ -1221,11 +1266,11 @@ function WriteDebugStatus()
     local string S;
 
     S = "phase=" $ Phase $ " round=" $ RoundNumber $ " matchups=" $ MatchupNumber;
-    if (ArmyAClass != None)
+    if (ArmyAName != "")
         S = S $ " armyA=" $ ArmyAName $ ":" $ AliveA;
     else
         S = S $ " armyA=none";
-    if (ArmyBClass != None)
+    if (ArmyBName != "")
         S = S $ " armyB=" $ ArmyBName $ ":" $ AliveB;
     else
         S = S $ " armyB=none";
@@ -1321,6 +1366,7 @@ function RestartGame()
 defaultproperties
 {
      ArmySize=32
+     bClonesArmy=True
      RoundTimeLimit=300
      RoundsPerMatch=3
      ResultTime=5.000000

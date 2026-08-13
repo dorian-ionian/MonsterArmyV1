@@ -9,6 +9,8 @@ every human on the server is locked into spectator mode to watch the show.
 
 - A **matchup** books two random monster classes from the table
   (`[MonsterArmyV1.MonsterArmyMonsters]` in `System\MonsterArmyV1.ini`).
+  With `bClonesArmy=False` the armies are a **mixed horde** instead - every
+  one of the 64 monsters is its own random pick from the table.
 - Each army spawns **32 monsters** (configurable) at opposite ends of the
   map, split around the two farthest-apart player starts.
 - A round is **best-of-3** (configurable) and ends when:
@@ -64,6 +66,8 @@ launcher uses ONS-Torlan).
 ```
 [MonsterArmyV1.MonsterArmyGame]
 ArmySize=32          ; monsters per army
+bClonesArmy=True     ; True = each army is one class (2 classes per matchup),
+                     ; False = every army member is a random monster from the table
 RoundTimeLimit=300   ; seconds per round (5 min)
 RoundsPerMatch=3     ; best-of-N rounds per matchup
 ResultTime=5         ; seconds to linger on a round result
