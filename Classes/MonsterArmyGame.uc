@@ -13,9 +13,9 @@
 // tie on time (or a simultaneous double wipe) is a draw.
 //
 // After the rounds the matchup winner is announced and two NEW random
-// armies are chosen. The whole war runs until the match TimeLimit (15
-// minutes by default) expires - then the army with more round wins takes
-// the show.
+// armies are chosen. The war runs ENDLESSLY - matchup after matchup -
+// unless a TimeLimit is configured ([Engine.GameInfo] or ?TimeLimit= in
+// the URL); then the army with more round wins takes the show.
 //=============================================================================
 
 // The round-start bell. Imported into this package at build time - ucc make
@@ -92,7 +92,8 @@ event InitGame(string Options, out string Error)
         MaxPlayers = 32;
     MaxSpectators = 32;   // every human is a spectator in this war!
 
-    // War length (default 15 minutes, standard ?TimeLimit= override works)
+    // War length (default 0 = endless matchups; standard ?TimeLimit=
+    // override and [Engine.GameInfo] TimeLimit= both work)
     TimeLimit = Clamp(GetIntOption(Options, "TimeLimit", TimeLimit), 0, 480);
     RemainingTime = 60 * TimeLimit;
     if (GameReplicationInfo != None)
@@ -1317,7 +1318,7 @@ defaultproperties
      MinPlayers=0
      MaxPlayers=32
      MaxSpectators=32
-     TimeLimit=15
+     TimeLimit=0          // 0 = endless war (matchups cycle forever)
      GoalScore=0
 
      GameName="Monster Army"

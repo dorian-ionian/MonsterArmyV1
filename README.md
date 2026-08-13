@@ -17,8 +17,10 @@ every human on the server is locked into spectator mode to watch the show.
     with the most monsters alive wins; a tie is a draw.
 - After the rounds, the matchup winner is announced and **two fresh random
   armies** are chosen.
-- The whole show runs until the match `TimeLimit` (15 min) expires, then
-  the army with more round wins takes the war. The level never restarts.
+- The war runs **endlessly** - matchup after matchup - unless a
+  `TimeLimit` is configured (`[Engine.GameInfo]` in the server ini, or
+  `?TimeLimit=` in the URL); then the army with more round wins takes the
+  show. The level never restarts.
 
 ## Files
 
@@ -71,4 +73,4 @@ BellVolume=255
 ```
 
 URL overrides: `?ArmySize=`, `?RoundTimeLimit=`, `?RoundsPerMatch=`,
-`?TimeLimit=`.
+`?TimeLimit=` (0 = endless).

@@ -84,11 +84,22 @@ if ($cfgStart -ge 0)
     $lines.InsertRange($cfgStart, $cfgLines)
 }
 
-#--- 4. [Engine.GameInfo] TimeLimit so the stock match timer runs -----------
-for ($i = 0; $i -lt $lines.Count - 1; $i++)
+#--- 4. [Engine.GameInfo] - endless war (TimeLimit=0) + spectator sizing ---
+# TimeLimit is globalconfig, so it must live here, not in the gametype's
+# own section. 0 = endless matchups; admins can set a bound later.
+$inGameInfo = -1
+for ($i = 0; $i -lt $lines.Count; $i++)
 {
-    if ($lines[$i] -eq "[Engine.GameInfo]" -and $lines[$i + 1] -match '^TimeLimit=')
-        { $lines[$i + 1] = "TimeLimit=15"; break }
+    if ($lines[$i] -eq "[Engine.GameInfo]") { $inGameInfo = $i; break }
+}
+if ($inGameInfo -ge 0)
+{
+    for ($i = $inGameInfo + 1; $i -lt $lines.Count -and $lines[$i] -notmatch '^\['; $i++)
+    {
+        if ($lines[$i] -match '^TimeLimit=')  { $lines[$i] = "TimeLimit=0"; continue }
+        if ($lines[$i] -match '^MaxPlayers=') { $lines[$i] = "MaxPlayers=32"; continue }
+        if ($lines[$i] -match '^MaxSpectators=') { $lines[$i] = "MaxSpectators=32"; continue }
+    }
 }
 
 #--- 5. Server name + redact secrets -----------------------------------------
