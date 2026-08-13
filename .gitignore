@@ -1,0 +1,21 @@
+# Compiled binaries and build output
+*.u
+*.u.uz2
+*.ucl.gz
+
+# Logs
+*.log
+
+# Ini backups (local safety copies)
+*.bak*
+
+# FTP / deploy credentials - NEVER commit these
+redirect_creds.txt
+
+# Windows junk
+Thumbs.db
+Desktop.ini
+
+# Editor
+*.sln
+*.user
